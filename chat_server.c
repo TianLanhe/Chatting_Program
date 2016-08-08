@@ -4,19 +4,14 @@
 #include <sys/msg.h>
 #include <error.h>
 #include <string.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <pthread.h>
-#define LOGIN 100
-#define SEND 90
-#define LENGTH 10
-#define USER_LOG 1
-#define USER_OLOG 0
-#define KEY ((key_t)100)
+#define LOGIN 100				//message type of logining or out of login
+#define SEND 90					//message type of sending a message
+#define LENGTH 10 				//max number of people to login
+#define USER_LOG 1 				//the flag of logining
+#define USER_OLOG 0 			//the flag of out of logining
+#define KEY ((key_t)100) 		//id of message box
 typedef struct _log{
 	long mtype;
 	int pid;
@@ -36,6 +31,7 @@ typedef struct _chat{
 	char str[100];
 }Chat;
 User userlink[LENGTH];
+int mid;
 void InitUser(User *userlink){
 	int i;
 	char *name[LENGTH]={"A","B","C","D","E",
@@ -44,17 +40,15 @@ void InitUser(User *userlink){
 		userlink[i].userid=0;
 		strcpy(userlink[i].username,name[i]);
 	}
-}
-int checklogin(){
-	int mid;
-	int sign;
-	int i;
-	Log message;
 	mid=msgget(KEY,IPC_CREAT|0660);
 	if(mid == -1){
 		perror("server creat message:");
-		return -1;
 	}
+}
+int checklogin(){
+	int sign;
+	int i;
+	Log message;
 	sign=msgrcv(mid,&message,sizeof(Log)-sizeof(long),LOGIN,0);
 	if(sign == -1){
 		perror("server receive:");
@@ -70,20 +64,15 @@ int checklogin(){
 		if(i >= LENGTH){
 			message.mtype=message.pid;
 			message.pid=-1;
-			sign=msgsnd(mid,&message,sizeof(Log)-sizeof(long),0);
-			if(sign == -1){
-				perror("server send:");
-				return -1;
-			}
 		}else{
 			strcpy(message.name,userlink[i].username);
 			message.mtype=message.pid;
 			message.pid=getpid();
-			sign=msgsnd(mid,&message,sizeof(Log)-sizeof(long),0);
-			if(sign == -1){
-				perror("server send:");
-				return -1;
-			}
+		}
+		sign=msgsnd(mid,&message,sizeof(Log)-sizeof(long),0);
+		if(sign == -1){
+			perror("server send:");
+			return -1;
 		}
 	}else if(message.flag == USER_OLOG){
 		for(i=0;i<LENGTH;i++){
@@ -96,16 +85,10 @@ int checklogin(){
 	return i;
 }
 int passmsg(){
-	int mid;
 	int sign;
 	int i;
 	char *ptr;
 	Chat message;
-	mid=msgget(KEY,IPC_CREAT|0660);
-	if(mid == -1){
-		perror("server creat message:");
-		return -1;
-	}
 	sign=msgrcv(mid,&message,sizeof(Chat)-sizeof(long),SEND,0);
 	if(sign == -1){
 		perror("server receive:");
