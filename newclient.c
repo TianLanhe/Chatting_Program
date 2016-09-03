@@ -315,7 +315,7 @@ int main(int argc,char *argv[]){
 			pthread_create(&thIDr,NULL,(void*)read_from,NULL);	//开两个线程监听读写
 			pthread_create(&thIDw,NULL,(void*)write_to,NULL);
 			pthread_join(thIDw,NULL);					//如果写入一句"quit"或者"exit"则结束线程
-														//在主线程处理收尾工作，将新的lassmessage写入文件
+			pthread_cancel(thIDr);						//在主线程处理收尾工作，将新的lassmessage写入文件
 			fd=open(user_account,O_WRONLY|O_CREAT,0660);
 			if(fd != -1){
 				char str[10];
