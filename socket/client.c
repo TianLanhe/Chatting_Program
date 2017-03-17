@@ -1,67 +1,9 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pthread.h>
-#include <stdarg.h>
-#define MYPORT 4567			//约定端口
-#define MAXMSG 500			//最大消息数
-#define MAXLEN 140			//最大消息长度
+#include "chat.h"
 
-typedef struct _message{
-	int id;					//消息的标识符
-	char str[MAXLEN+1];		//消息正文
-}Message;					//一条消息的结构体
-typedef struct _user{
-	char account[20];		//账号
-	char password[20];		//密码
-}User;						//用户登录信息
-typedef union _data{
-	User userinfo;			//用户信息
-	Message message;		//消息
-}Data;						//数据包共用体
-typedef enum _kind{
-	enum_regist,enum_login,enum_logout,enum_chat,enum_modify
-	//注册			登录 		登出	发送消息    修改用户密码
-}Kind;							//用枚举变量表示包类型
-typedef struct _packet{
-	Kind kind;		//包类型
-	Data data;		//数据包
-}Packet;					//通信协议
-
-int lastmessage;			//收到的最后一条消息id
-int client_socket;			//客户端套接字
+int lastmessage;			    //收到的最后一条消息id
+int client_socket;			  //客户端套接字
 char user_account[20];		//用户名
 
-int build_packet(Packet *packet,Kind kind,...);
-//将数据和类型打包，封装到packet中。使用变长参数，第三个参数可以任意类型
-int parse_packet(Packet packet,Kind *kind,Data *data);
-//解析数据包，把类型和数据取出来
-int build_packet(Packet *packet,Kind kind,...){
-	va_list ap;
-	packet->kind=kind;
-	va_start(ap,kind);
-	switch(kind){
-		case enum_regist:
-		case enum_modify:
-		case enum_logout:
-		case enum_login:packet->data=(Data)va_arg(ap,User);break;
-		case enum_chat:packet->data=(Data)va_arg(ap,Message);break;
-		default:return -1;
-	}
-	va_end(ap);
-	return 0;
-}
-int parse_packet(Packet packet,Kind *kind,Data *data){
-	*kind=packet.kind;
-	*data=packet.data;
-	return 0;
-}
 int init_client(int port,char *addr);
 //为客户端分配套接字并连接到服务器，服务器地址和端口由形参传入，连接成功返回套接字，失败返回-1
 void read_from();
@@ -76,9 +18,10 @@ int compare_account(char *account,char *str);
 //比较消息str的发送者是否是account，是返回0，否则返回非0.account是用户名，str是包含用户名的一条消息
 
 void printlogin(){
-	printf("\n1.Sign up\n");
-	printf("2.Sign in\n");
-	printf("3.Change Password\n");
+  printf("\n");
+	printf("1.Sign Up\n");
+	printf("2.Sign In\n");
+	printf("3.Modify Password\n");
 	printf("0.Quit\n");
 	printf("Please tpye your choice:");
 }
@@ -86,6 +29,7 @@ int init_client(int port,char *addr){
 	int cli_socket;
 	int try_time;
 	struct sockaddr_in server_addr;
+	
 	cli_socket=socket(AF_INET,SOCK_STREAM,0);	//创建客户端套接字
 	if(cli_socket==-1)return -1;
 
@@ -164,24 +108,27 @@ void get_user_info(Kind kind,Data *data){
 		printf("Please input your account:");
 		scanf("%s",data->userinfo.account);		//不能输入用空格等分隔符风格的账号和密码
 		if(strlen(data->userinfo.account) > 19)
-			printf("Then length of account should be shortter than 19 words.\n");
+			printf("The length of account should be shortter than 19 characters.\n");
 	}while(strlen(data->userinfo.account) > 19);
 	do{
 		do{
 			printf("Please input your password:");
 			scanf("%s",data->userinfo.password);
 			if(strlen(data->userinfo.password) > 19)
-				printf("The length of password should be shortter than 19 words.\n");
+				printf("The length of password should be shortter than 19 characters.\n");
 		}while(strlen(data->userinfo.password) > 19);
-		if(kind != enum_regist)strcpy(password_check,data->userinfo.password);
+		if(kind != enum_regist)
+		  strcpy(password_check,data->userinfo.password);
 		else{
 			do{
-				printf("Please input your password agan:");
+				printf("Please input your password again:");
 				scanf("%s",password_check);
 				if(strlen(password_check) > 19)
-					printf("The length of password should be shortter than 19 words.\n");
+					printf("The length of password should be shortter than 19 characters.\n");
 			}while(strlen(password_check) > 19);
 		}
+		if(strcmp(data->userinfo.password,password_check)
+		  printf("The password you entered should be consistent.\n");
 	}while(strcmp(data->userinfo.password,password_check));
 }
 int main(int argc,char *argv[]){
@@ -190,6 +137,7 @@ int main(int argc,char *argv[]){
 	char str[50];
 	int select;
 	int flag;
+	
 	if(argc != 1){
 		printf("usage:%s\n\n",argv[0]);
 		return -1;
@@ -199,10 +147,14 @@ int main(int argc,char *argv[]){
 	while(1){
 		if(flag == 0){
 			printlogin();
+			
+			select=-1;
 			do{
 				scanf("%d",&select);
 			}while(select<0 || select>3);
-			if(select == 0)return;
+			
+			if(select == 0)  //退出程序
+			  return 0;
 			else{
 				Packet packet;
 				Kind kind;
@@ -213,7 +165,8 @@ int main(int argc,char *argv[]){
 					printf("connect error!\n");
 					return -1;
 				}
-				if(select == 1){
+				
+				if(select == 1){  //注册用户
 					get_user_info(enum_regist,&data);
 					if(build_packet(&packet,enum_regist,data) == -1){
 						printf("fail to build the packet!\n");
@@ -221,8 +174,8 @@ int main(int argc,char *argv[]){
 					}
 					write(client_socket,&packet,sizeof(Packet));	//发送类型为enum_regist的包给服务器表示注册
 					read(client_socket,&packet,sizeof(Packet));		//服务器处理后发送回应包，客户端接受并解析
-					parse_packet(packet,&kind,&data);				//判断是否注册成功，account为空表示注册失败
-					if(kind != enum_regist){						//否则为成功
+					parse_packet(packet,&kind,&data);				      //判断是否注册成功，account为空表示注册失败
+					if(kind != enum_regist){
 						printf("the type of the packet received is error!\n");
 						return -1;
 					}
@@ -231,15 +184,15 @@ int main(int argc,char *argv[]){
 					else
 						printf("Regist failed.\n");
 					sleep(1);
-				}else if(select == 2){
+				}else if(select == 2){  //登录聊天室
 					get_user_info(enum_login,&data);
 					if(build_packet(&packet,enum_login,data) == -1){
 						printf("fail to build the packet!\n");
 						return -1;
 					}
-					write(client_socket,&packet,sizeof(Packet));
-					read(client_socket,&packet,sizeof(Packet));
-					parse_packet(packet,&kind,&data);
+					write(client_socket,&packet,sizeof(Packet));  //发送类型为enum_login的包给服务器表示注册
+					read(client_socket,&packet,sizeof(Packet));   //服务器处理后发送回应包，客户端接受并解析
+					parse_packet(packet,&kind,&data);				      //判断是否登录成功，account为空表示登录失败
 					if(kind != enum_login){
 						printf("the type of the packet received is error!\n");
 						return -1;
@@ -248,7 +201,7 @@ int main(int argc,char *argv[]){
 						printf("Login succeed.\n");
 						fgets(user_account,20,stdin);
 						strcpy(user_account,packet.data.userinfo.account);
-						flag=1;
+						flag=1; //置为1切换到聊天室模式
 					}else{
 						printf("Login failed.\n");
 					}

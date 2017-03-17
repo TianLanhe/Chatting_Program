@@ -7,7 +7,6 @@
 #include <sys/msg.h>
 #include <error.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 
 #define LOGIN 100				//消息类型，表示登录或登出

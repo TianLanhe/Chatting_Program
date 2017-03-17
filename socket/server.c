@@ -1,90 +1,36 @@
-#include <stdio.h>
-#include <sys/socket.h>
+#include "chat.h"
+
 #include <sys/shm.h>
 #include <sys/ipc.h>
-#include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/sem.h>
-#include <stdarg.h>
-#define MYPORT 4567			//约定端口
-#define MAXMSG 500			//最大消息数
-#define MAXLEN 140			//最大消息长度
-#define MUTEX 1 			//计数器信号量
-#define RW 0 				//读写进程对共享内存区的信号量
-#define W 2 				//为了写进程优先设置的信号量
-#define COUNT 3				//读进程数量
+
+#define MUTEX 1 			  //计数器信号量
+#define RW 0 				    //读写进程对共享内存区的信号量
+#define W 2 				    //为了写进程优先设置的信号量
+#define COUNT 3				  //读进程数量
 #define FILESEM 4 			//文件访问信号量
 #define MAXUSER 500 		//用户最大数量
 
-union semun{				//信号量处理必需的共用体
+union semun{				    //信号量处理必需的共用体
 	int val;
 	struct semid_ds *buf;
 	unsigned short *array;
 };
-typedef struct _message{
-	int id;					//消息的标识符
-	char str[MAXLEN+1];		//消息正文
-}Message;					//一条消息的结构体
 typedef struct _space{
-	int length;				//消息的数量，条数
+	int length;				    //消息的数量，条数
 	Message message[MAXMSG];//消息，最多MAXMSG条
-}Space;						//共享区的全部内容
-typedef struct _user{
-	char account[20];		//账号
-	char password[20];		//密码
-}User;						//用户登录信息
-typedef union _data{
-	User userinfo;			//用户信息
-	Message message;		//消息
-}Data;						//数据包共用体
-typedef enum _kind{
-	enum_regist,enum_login,enum_logout,enum_chat,enum_modify
-	//注册			登录 		登出		 发送消息    修改用户密码
-}Kind;						//用枚举变量表示包类型
-typedef struct _packet{
-	Kind kind;		//包类型
-	Data data;		//数据包
-}Packet;					//通信协议
+}Space;						      //共享区的全部内容
 
-Space *space;				//共享区内存
+
+Space *space;				    //共享区内存
 int client_socket;			//客户端套接字
 char client_ip[20];			//客户端IP的字符串表示
-int shmid;					//共享内存区(多人聊天)标识符(ID)
-int semid;					//信号量标识符(ID)
+int shmid;					    //共享内存区(多人聊天)标识符(ID)
+int semid;					    //信号量标识符(ID)
 
-int build_packet(Packet *packet,Kind kind,...);
-//将数据和类型打包，封装到packet中。使用变长参数，第三个参数可以任意类型
-int parse_packet(Packet packet,Kind *kind,Data *data);
-//解析数据包，把类型和数据取出来
-int build_packet(Packet *packet,Kind kind,...){
-	va_list ap;
-	packet->kind=kind;
-	va_start(ap,kind);
-	switch(kind){
-		case enum_regist:
-		case enum_modify:
-		case enum_logout:
-		case enum_login:packet->data=(Data)va_arg(ap,User);break;
-		case enum_chat:packet->data=(Data)va_arg(ap,Message);break;
-		default:return -1;
-	}
-	va_end(ap);
-	return 0;
-}
-int parse_packet(Packet packet,Kind *kind,Data *data){
-	*kind=packet.kind;
-	*data=packet.data;
-	return 0;
-}
 int init_socket(int port,int addr);
 //初始化套接字，传入端口和地址，自动生成一个套接字并关联地址，监听。返回套接字。若失败，返回-1
 void do_server();
