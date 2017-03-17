@@ -20,3 +20,4 @@ int parse_packet(Packet packet,Kind *kind,Data *data){
 	*data=packet.data;
 	return 0;
 }
+

@@ -1,5 +1,6 @@
 #ifndef chat_h
 #define chat_h
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -10,9 +11,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdarg.h>
+
 #define MYPORT 4567			//约定端口
-#define MAXMSG 500			//最大消息数
 #define MAXLEN 140			//最大消息长度
+
 typedef struct _message{
 	int id;					      //消息的标识符
 	char str[MAXLEN+1];		//消息正文
